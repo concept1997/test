@@ -71,22 +71,15 @@ export default {
   },
   created() {},
   methods: {
-    onFileAdded(file) {
+    async onFileAdded(file) {
       this.computeMD5(file);
       // 2022/1/10 将额外的参数赋值到每个文件上，解决了不同文件使用不同params的需求
       //file.params = this.params;
 
       //console.log("文件已选择");
-      this.$http({
-        url: "n/sliceUpload/removeCache/s3",
-        method: "post",
-        data: { name: file.name },
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-      }).then((res) => {
-        //console.log(res);
-      });
+      const { data: res } = await this.$http.post(
+        "n/sliceUpload/removeCache/s3?name=" + file.name
+      );
     },
     onFileProgress(rootFile, file, chunk) {
       /*console.log(
