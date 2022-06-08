@@ -30,7 +30,7 @@ export default {
         target:
           "http://apidev.obei.com.cn/obei-gateway/basic/n/sliceUpload/s3/new",
         // 分块大小
-        chunkSize: "2048000",
+        chunkSize: "10485760",
         // 上传文件时文件内容的参数名，对应chunk里的Multipart对象名，默认对象名为file
         //fileParameterName: "chunk",
         // 失败后最多自动重试上传次数
