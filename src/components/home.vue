@@ -109,6 +109,7 @@ export default {
 
       //console.log(file);
       //console.log("上传成功");
+      /*
       this.$http({
         url: "n/sliceMerge/s3/new",
         method: "post",
@@ -122,7 +123,14 @@ export default {
         },
       }).then((res) => {
         //console.log(res);
-      });
+      });*/
+      const { data: res1 } = await this.$http.post(
+        "n/sliceMerge/s3/new?fileType=66&name=" +
+          file.name +
+          "&chunkTotal=" +
+          file.chunks.length
+      );
+      console.log(res1);
     },
     onFileError(rootFile, file, response, chunk) {
       /*this.$message({
