@@ -3,6 +3,7 @@
     :options="options"
     class="uploader-example"
     :autoStart="false"
+    :file-status-text="statusText"
     @file-added="onFileAdded"
     @file-success="onFileSuccess"
     @file-progress="onFileProgress"
@@ -21,12 +22,12 @@
 <script>
 import SparkMD5 from "spark-md5";
 import $ from "jquery";
+import axios from "axios";
 export default {
   data() {
     return {
       options: {
         // 目标上传 URL，默认POST
-        //"http://localhost:3000/upload",
         target:
           "http://apidev.obei.com.cn/obei-gateway/basic/n/sliceUpload/s3/new",
         // 分块大小
@@ -42,18 +43,30 @@ export default {
           reponse码如果返回的是permanentErrors 中的状态码，不会进入该方法，直接进入onFileError函数 ，并显示上传失败
           reponse码是其他状态码，不会进入该方法，正常走标准上传
           checkChunkUploadedByResponse函数直接return true的话，不再调用上传接口
-        
+        */
+        /*
         checkChunkUploadedByResponse: function (chunk, message) {
-                        let objMessage = JSON.parse(message);
-                        if (objMessage.skipUpload) {
-                            return true;
-                        }
-
-                        return (objMessage.uploaded || []).indexOf(chunk.offset + 1) >= 0
-                    },
-        },*/
+          axios
+            .post(
+              "http://apidev.obei.com.cn/obei-gateway/basic/n/sliceUpload/s3/finished?name=" +
+                chunk.file.name
+            )
+            .then((res) => {
+              let a = res.data.data.indexOf(chunk.offset + 1) >= 0;
+              return a;
+            });
+          //return false;
+        },
+        */
+        parseTimeRemaining: function (timeRemaining, parsedTimeRemaining) {
+          return parsedTimeRemaining
+            .replace(/\syears?/, "年")
+            .replace(/\days?/, "天")
+            .replace(/\shours?/, "小时")
+            .replace(/\sminutes?/, "分钟")
+            .replace(/\sseconds?/, "秒");
+        },
         query: (file, chunk) => {
-          console.log(chunk);
           return {
             ...file.params,
             chunkNumber: chunk.offset,
@@ -62,24 +75,26 @@ export default {
           };
         },
       },
+      //上传状态
+      statusText: {
+        success: "上传分片完成",
+        error: "出错了！",
+        uploading: "上传中...",
+        paused: "暂停中...",
+        waiting: "等待中...",
+      },
       attrs: {
         accept: "image/*",
       },
       collapse: false,
       params: {},
+      fileName: "",
     };
   },
-  created() {},
   methods: {
     async onFileAdded(file) {
       this.computeMD5(file);
-      // 2022/1/10 将额外的参数赋值到每个文件上，解决了不同文件使用不同params的需求
-      //file.params = this.params;
-
-      //console.log("文件已选择");
-      const { data: res } = await this.$http.post(
-        "n/sliceUpload/removeCache/s3?name=" + file.name
-      );
+      this.fileName = file.name;
     },
     onFileProgress(rootFile, file, chunk) {
       /*console.log(
@@ -98,41 +113,37 @@ export default {
       const { data: res } = await this.$http.post(
         "n/sliceUpload/s3/finished?name=" + file.name
       );
-      //console.log(res.data);
-
-      //console.log(file);
-      //console.log("上传成功");
-      /*
-      this.$http({
-        url: "n/sliceMerge/s3/new",
-        method: "post",
-        data: {
-          fileType: "66",
-          name: file.name,
-          chunkTotal: file.chunks.length,
-        },
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-      }).then((res) => {
-        //console.log(res);
-      });*/
-      const { data: res1 } = await this.$http.post(
-        "n/sliceMerge/s3/new?fileType=66&name=" +
-          file.name +
-          "&chunkTotal=" +
-          file.chunks.length
-      );
-      console.log(res1);
+      //判断已完成的和块数是否相同
+      if (res.data.length == file.chunks.length) {
+        const { data: res1 } = await this.$http.post(
+          "n/sliceMerge/s3/new?fileType=66&name=" +
+            file.name +
+            "&chunkTotal=" +
+            file.chunks.length
+        );
+        if (res1.success) {
+          //合并成功清除缓存
+          console.log(res1.data);
+          this.clear(file.name);
+        } else {
+          //合并失败清除缓存
+          console.log(res1.message);
+          this.clear(file.name);
+        }
+      } else {
+        //不同清除缓存
+        this.clear(file.name);
+      }
     },
     onFileError(rootFile, file, response, chunk) {
-      /*this.$message({
-                    message: response,
-                    type: 'error'
-                })*/
       console.log("上传失败");
+      this.clear(file.name);
     },
-
+    async clear(name) {
+      const { data: res } = await this.$http.post(
+        "n/sliceUpload/removeCache/s3?name=" + name
+      );
+    },
     /**
      * 计算md5，实现断点续传及秒传
      * @param file
