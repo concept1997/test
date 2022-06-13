@@ -28,6 +28,7 @@ export default {
     return {
       options: {
         // 目标上传 URL，默认POST
+        //"http://localhost:3000/upload",
         target:
           "http://apidev.obei.com.cn/obei-gateway/basic/n/sliceUpload/s3/new",
         // 分块大小
@@ -37,27 +38,21 @@ export default {
         // 失败后最多自动重试上传次数
         maxChunkRetries: 3,
         // 是否开启服务器分片校验，对应GET类型同名的target URL
-        testChunks: false,
+        testChunks: true,
         /* 服务器分片校验函数，判断秒传及断点续传,传入的参数是Uploader.Chunk实例以及请求响应信息
           reponse码是successStatuses码时，才会进入该方法
           reponse码如果返回的是permanentErrors 中的状态码，不会进入该方法，直接进入onFileError函数 ，并显示上传失败
           reponse码是其他状态码，不会进入该方法，正常走标准上传
           checkChunkUploadedByResponse函数直接return true的话，不再调用上传接口
         */
-        /*
+
         checkChunkUploadedByResponse: function (chunk, message) {
-          axios
-            .post(
-              "http://apidev.obei.com.cn/obei-gateway/basic/n/sliceUpload/s3/finished?name=" +
-                chunk.file.name
-            )
-            .then((res) => {
-              let a = res.data.data.indexOf(chunk.offset + 1) >= 0;
-              return a;
-            });
-          //return false;
+          let obj = JSON.parse(message);
+          let a = (chunk.offset + 1).toString();
+          console.log(obj.data, a, (obj.data || []).indexOf(a));
+          return (obj.data || []).indexOf(a) >= 0;
         },
-        */
+
         parseTimeRemaining: function (timeRemaining, parsedTimeRemaining) {
           return parsedTimeRemaining
             .replace(/\syears?/, "年")
@@ -72,6 +67,7 @@ export default {
             chunkNumber: chunk.offset,
             fileName: file.name,
             fileType: "66",
+            name: file.name,
           };
         },
       },
@@ -93,8 +89,13 @@ export default {
   },
   methods: {
     async onFileAdded(file) {
+      //this.clear(file.name);
       this.computeMD5(file);
       this.fileName = file.name;
+      const { data: res } = await this.$http.post(
+        "n/sliceUpload/s3/finished?name=" + file.name
+      );
+      console.log("已完成", res.data);
     },
     onFileProgress(rootFile, file, chunk) {
       /*console.log(
